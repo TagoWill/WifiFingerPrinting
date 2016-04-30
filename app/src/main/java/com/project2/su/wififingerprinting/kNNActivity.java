@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -14,15 +15,18 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 
 public class kNNActivity extends AppCompatActivity {
     ListView lv2;
     Button find;
+    List<APScan> validationplaces = new ArrayList<>();
 
     /*static class Sample {
         int level;
@@ -52,16 +56,16 @@ public class kNNActivity extends AppCompatActivity {
     }
 
     public void findkNN(String location){
-        APScan place = new APScan();
+        APScan trainingplace = new APScan();
         WifiManager wifimanager=(WifiManager)getSystemService(Context.WIFI_SERVICE);
         wifimanager.startScan();
         List<ScanResult> results = wifimanager.getScanResults();
         System.out.println("Location: "+location+"  APs Found: "+results.size());
         String apstring []= new String[results.size()];
-        place.setLocation(location);
+        trainingplace.setLocation(location);
         int i =0;
         for (ScanResult ap : results) {
-            place.setMap(ap.BSSID, ap.level);
+            trainingplace.setMap(ap.BSSID, ap.level);
             apstring[i] = "SSID: " + ap.SSID + "\nBSSID: "+ap.BSSID+ "\nSIGNAL: "+ap.level+" dB\n";
             i++;
         }
@@ -70,20 +74,46 @@ public class kNNActivity extends AppCompatActivity {
         lv2=(ListView)findViewById(R.id.listViewResults);
         lv2.setAdapter(new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,apstring));
 
-        /*try {
-            List<Sample> trainingSet = readFile("trainingsample.csv");
-            List<Sample> validationSet = readFile("validationsample.csv");
-            int numCorrect = 0;
-            for(Sample sample:validationSet) {
-                if(classify(trainingSet, sample.level) == sample.label) numCorrect++;
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(Environment.getExternalStorageDirectory()+"/FingerPrinting/WifiScans.csv"));
+            String printaps, key, sign;
+            APScan savedplace;
+            String printapssplit[];
+            while ((printaps=reader.readLine()) != null){
+                //System.out.println(printaps);
+                savedplace = new APScan();
+                printapssplit = printaps.split(";");
+                savedplace.setLocation(printapssplit[0]);
+                int h = 1;
+                while (h<printapssplit.length){
+                    savedplace.setMap(printapssplit[h], Integer.parseInt(printapssplit[h+1]));
+                    h+=2;
+                }
+                validationplaces.add(savedplace);
             }
-            System.out.println("Accuracy: " + (double)numCorrect / validationSet.size() * 100 + "%");
+
+            int numCorrect = 0;
+            for(APScan sample:validationplaces) {
+                if(classify(trainingplace, sample) == sample) numCorrect++;
+            }
+            System.out.println("Accuracy: " + (double)numCorrect / validationplaces.size() * 100 + "%");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        }*/
+        }
     }
 
-    /*public static List<Sample> readFile(String file) throws IOException {
+    /*
+    List<Sample> trainingSet = readFile("trainingsample.csv");
+    List<Sample> validationSet = readFile("validationsample.csv");
+    int numCorrect = 0;
+    for(Sample sample:validationSet) {
+        if(classify(trainingSet, sample.level) == sample.label) numCorrect++;
+    }
+    System.out.println("Accuracy: " + (double)numCorrect / validationSet.size() * 100 + "%");
+
+    public static List<Sample> readFile(String file) throws IOException {
         List<Sample> samples = new ArrayList<Sample>();
         BufferedReader reader = new BufferedReader(new FileReader(file));
         try {
@@ -100,7 +130,7 @@ public class kNNActivity extends AppCompatActivity {
             }
         } finally { reader.close(); }
         return samples;
-    }
+    }*/
 
     public static int distance(int[] a, int[] b) {
         int sum = 0;
@@ -110,15 +140,15 @@ public class kNNActivity extends AppCompatActivity {
         return (int)Math.sqrt(sum); // euclidian distance would be sqrt(sum)...
     }
 
-    public static int classify(List<Sample> trainingSet, int[] pixels) {
+    public static int classify(List<APScan> trainingSet, HashMap m) {
         int label = 0, bestDistance = Integer.MAX_VALUE;
-        for(Sample sample: trainingSet) {
-            int dist = distance(sample.pixels, pixels);
+        for(APScan sample: trainingSet) {
+            int dist = distance(m.level, level);
             if(dist < bestDistance) {
                 bestDistance = dist;
-                label = sample.label;
+                mac = sample.mac;
             }
         }
         return label;
-    }*/
+    }
 }
