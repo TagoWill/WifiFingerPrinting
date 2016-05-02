@@ -19,8 +19,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 
 public class kNNActivity extends AppCompatActivity {
@@ -28,10 +36,11 @@ public class kNNActivity extends AppCompatActivity {
     Button find;
     List<APScan> validationplaces = new ArrayList<>();
 
-    /*static class Sample {
+    static class Sample {
         int level;
         String mac;
-    }*/
+        String location;
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -70,7 +79,6 @@ public class kNNActivity extends AppCompatActivity {
             i++;
         }
         TextView result = (TextView) findViewById(R.id.textResult2);
-        result.setText("DEU");
         lv2=(ListView)findViewById(R.id.listViewResults);
         lv2.setAdapter(new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,apstring));
 
@@ -93,62 +101,79 @@ public class kNNActivity extends AppCompatActivity {
             }
 
             int numCorrect = 0;
+            Sample[] best_knn_result;
             for(APScan sample:validationplaces) {
-                if(classify(trainingplace, sample) == sample) numCorrect++;
+                best_knn_result = check_kNN(trainingplace, sample, 3);
+                //result_location = resultado da votacao;
+                if(classify(best_knn_result, location)) {
+                    numCorrect++;
+                }
             }
             System.out.println("Accuracy: " + (double)numCorrect / validationplaces.size() * 100 + "%");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            //result.setText(result_location);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    /*
-    List<Sample> trainingSet = readFile("trainingsample.csv");
-    List<Sample> validationSet = readFile("validationsample.csv");
-    int numCorrect = 0;
-    for(Sample sample:validationSet) {
-        if(classify(trainingSet, sample.level) == sample.label) numCorrect++;
-    }
-    System.out.println("Accuracy: " + (double)numCorrect / validationSet.size() * 100 + "%");
-
-    public static List<Sample> readFile(String file) throws IOException {
-        List<Sample> samples = new ArrayList<Sample>();
-        BufferedReader reader = new BufferedReader(new FileReader(file));
-        try {
-            String line = reader.readLine(); // ignore header
-            while((line = reader.readLine()) != null) {
-                String[] tokens = line.split(",");
-                APScan sample = new APScan();
-                sample.label = Integer.parseInt(tokens[0]);
-                sample.pixels = new int[tokens.length - 1];
-                for(int i = 1; i < tokens.length; i++) {
-                    sample.pixels[i-1] = Integer.parseInt(tokens[i]);
-                }
-                samples.add(sample);
-            }
-        } finally { reader.close(); }
-        return samples;
-    }*/
-
-    public static int distance(int[] a, int[] b) {
+    public static int distance(int a, int b) {
         int sum = 0;
-        for(int i = 0; i < a.length; i++) {
-            sum += (a[i] - b[i]) * (a[i] - b[i]);
-        }
-        return (int)Math.sqrt(sum); // euclidian distance would be sqrt(sum)...
+        sum += (a - b) * (a - b);
+        return (int)Math.sqrt(sum);
     }
 
-    public static int classify(List<APScan> trainingSet, HashMap m) {
-        int label = 0, bestDistance = Integer.MAX_VALUE;
-        for(APScan sample: trainingSet) {
-            int dist = distance(m.level, level);
-            if(dist < bestDistance) {
-                bestDistance = dist;
-                mac = sample.mac;
+    public Sample[] check_kNN(APScan trainingplace, APScan validationplaces_sample, int k)
+    {
+        String local = validationplaces_sample.getLocation();
+        Sample[] best_kNN = new Sample[k];
+        int bestDistance = Integer.MAX_VALUE;
+        HashMap<String, Integer> tmap = sortByValues(trainingplace.map);
+        HashMap<String, Integer> vmap = sortByValues(validationplaces_sample.map);
+        for (String vkey : vmap.keySet())
+        {
+            //System.out.println(local+" : "+key+": "+vmap.get(key));
+            for (String tkey : tmap.keySet())
+            {
+                if (vkey.equals(tkey))
+                {
+                    int dist = distance(tmap.get(tkey), vmap.get(vkey));
+                    if(dist < bestDistance) {
+                        bestDistance = dist;
+                        best_kNN[0].mac = vkey;
+                        best_kNN[0].level = vmap.get(vkey);
+                        best_kNN[0].location = local;
+
+                    }
+                }
             }
         }
-        return label;
+        return best_kNN;
+    }
+
+    public static boolean classify(Sample[] best_knn_sample, String location) {
+        // FAZER VOTACAO!
+        if ((best_knn_sample[0].location).equals(location))
+            return true;
+        else
+            return false;
+    }
+
+    private static HashMap sortByValues(HashMap map) {
+        List list = new LinkedList(map.entrySet());
+        // Defined Custom Comparator here
+        Collections.sort(list, new Comparator() {
+            public int compare(Object o1, Object o2) {
+                return ((Comparable) ((Map.Entry) (o1)).getValue())
+                        .compareTo(((Map.Entry) (o2)).getValue());
+            }
+        });
+        // Here I am copying the sorted list in HashMap
+        // using LinkedHashMap to preserve the insertion order
+        HashMap sortedHashMap = new LinkedHashMap();
+        for (Iterator it = list.iterator(); it.hasNext();) {
+            Map.Entry entry = (Map.Entry) it.next();
+            sortedHashMap.put(entry.getKey(), entry.getValue());
+        }
+        return sortedHashMap;
     }
 }
