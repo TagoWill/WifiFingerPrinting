@@ -11,17 +11,13 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
-
 import java.util.List;
-import java.util.Objects;
 
 
 public class SaveAPsActivity extends AppCompatActivity {
     ListView lv;
     WifiManager wifimanager;
     Button buttonSave;
-    String[] places = {"lugar1", "lugar2", "lugar3", "lugar4"};
-    int[] nmeasures = {0,0,0,0};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,20 +32,8 @@ public class SaveAPsActivity extends AppCompatActivity {
 
                 if (!inputText.getText().toString().trim().equals("")) {
                     String location = inputText.getText().toString();
-                    //System.out.println(location);
-                    if (Objects.equals(location, places[0]))
-                    {
-                        APScan place0 = new APScan();
-                        //System.out.println(location+" _0_ "+nmeasures[0]);
-                        scanAPs(location, place0);
-                        nmeasures[0]++;
-                    } else if (Objects.equals(location, places[1]))
-                    {
-                        APScan place1 = new APScan();
-                        //System.out.println(location+" _1_ "+nmeasures[1]);
-                        scanAPs(location, place1);
-                        nmeasures[1]++;
-                    }
+                    APScan place = new APScan();
+                    scanAPs(location, place);
                 } else {
                     Toast.makeText(SaveAPsActivity.this, "Please Enter Location", Toast.LENGTH_SHORT).show();
                 }
