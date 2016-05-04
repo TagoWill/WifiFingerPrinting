@@ -147,15 +147,11 @@ public class kNNActivity extends AppCompatActivity {
         int i = k;
         int bestDistance = Integer.MAX_VALUE;
         HashMap<String, Integer> tmap = sortByValues(trainingplace.map);
-        HashMap<String, Integer> vmap = sortByValues(validationplaces_sample.map);
-        for (String vkey : vmap.keySet())
-        {
             //System.out.println(local+" : "+key+": "+vmap.get(key));
             //System.out.println("check_kNN: "+vkey+"   "+validationplaces_sample.getLocation());
-            for (String tkey : tmap.keySet())
-            {
+            for (String tkey : tmap.keySet()) {
                 //System.out.println("check_kNN"+tkey);
-                if (vkey.equals(tkey))
+                /*if (vkey.equals(tkey))
                 {
                     int dist = distance(tmap.get(tkey), vmap.get(vkey));
                     System.out.println("check_kNN: "+tmap.get(tkey)+" : "+vmap.get(vkey)+" Best Distance: "+bestDistance+" Distance: "+dist);
@@ -171,8 +167,27 @@ public class kNNActivity extends AppCompatActivity {
                         System.out.println(best_kNN[0].level);
                         k--;
                     }
+                }*/
+                int lvl;
+                if(validationplaces_sample.map.containsKey(tkey)){
+                    lvl = validationplaces_sample.map.get(tkey);
+                    System.out.println("check_kNN: "+tmap.get(tkey)+" : "+lvl+" Best Distance: "+bestDistance);
+                }else{
+                    lvl = -99;
                 }
-            }
+                int dist = distance(tmap.get(tkey), lvl);
+                if(dist < bestDistance) {
+                    bestDistance = dist;
+                    best_kNN[i-k] = new Sample();
+                    best_kNN[i-k].setMac(tkey);
+                    best_kNN[i-k].setLevel(lvl);
+                    best_kNN[i-k].setLocation(local);
+                    System.out.println("i: "+i+" k: "+k);
+                    System.out.println(best_kNN[0].location);
+                    System.out.println(best_kNN[0].mac);
+                    System.out.println(best_kNN[0].level);
+                    k--;
+                }
         }
         return best_kNN;
     }
