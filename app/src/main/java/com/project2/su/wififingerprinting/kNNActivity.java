@@ -30,31 +30,33 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-
 public class kNNActivity extends AppCompatActivity {
     ListView lv2;
     Button find;
     List<APScan> validationplaces = new ArrayList<>();
-    int bestDistance = Integer.MAX_VALUE;
     int k = 3;
-    int i = k;
+    List<Sample> best_knn;
 
     static class Sample {
-        int level;
-        String mac;
+        int distance;
         String location;
+
+        Sample(int l, String location){
+            this.distance = l;
+            this.location = location;
+        }
 
         public void setLevel(int l)
         {
-            this.level = l;
+            this.distance = l;
         }
 
         public void setLocation(String location) {
             this.location = location;
         }
 
-        public void setMac(String mac) {
-            this.mac = mac;
+        public String getLocation() {
+            return location;
         }
     }
 
@@ -118,19 +120,20 @@ public class kNNActivity extends AppCompatActivity {
             }
             int numCorrect = 0;
             String result_location = "";
+            best_knn = new ArrayList<>();
             for(APScan sample:validationplaces) {
                 System.out.println("sample location: "+sample.getLocation());
-                result_location = check_kNN(trainingplace, sample);
+                check_kNN(trainingplace, sample);
                 if(classify(result_location, sample.getLocation())) {
                     numCorrect++;
                 }
             }
+            result_location = voter();
             double acc = (double)numCorrect / (double)validationplaces.size() * 100.0;
             System.out.println("Accuracy: "+acc+"%");
             result.setText(result_location);
             accuracy.setText(String.format("%.2f",acc)+"%");
             k=3;
-            bestDistance = Integer.MAX_VALUE;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -142,11 +145,10 @@ public class kNNActivity extends AppCompatActivity {
         return (int)Math.sqrt(sum);
     }
 
-    public String check_kNN(APScan trainingplace, APScan validationplaces_sample)
+    public void check_kNN(APScan trainingplace, APScan validationplaces_sample)
     {
         //System.out.println("check_kNN");
         String local = validationplaces_sample.getLocation();
-        Sample[] best_kNN = new Sample[k];
         HashMap<String, Integer> tmap = sortByValues(trainingplace.map);
         //System.out.println(local+" : "+key+": "+vmap.get(key));
         for (String tkey : tmap.keySet()) {
@@ -154,48 +156,49 @@ public class kNNActivity extends AppCompatActivity {
             int lvl;
             if (validationplaces_sample.map.containsKey(tkey)) {
                 lvl = validationplaces_sample.map.get(tkey);
-                System.out.println("check_kNN: " + tmap.get(tkey) + " : " + lvl + " Best Distance: " + bestDistance);
-                int dist = distance(tmap.get(tkey), lvl);
-                if (dist < bestDistance) {
-                    if (k != 0) {
-                        System.out.println("Best Distance: " + bestDistance + " dist: " + dist);
-                        bestDistance = dist;
-                        best_kNN[i - k] = new Sample();
-                        best_kNN[i - k].setMac(tkey);
-                        best_kNN[i - k].setLevel(lvl);
-                        best_kNN[i - k].setLocation(local);
-                        System.out.println("best_kNN[" + i + "-" + k + "]: " + best_kNN[i - k].location);
-                        System.out.println("best_kNN[" + i + "-" + k + "]: " + best_kNN[i - k].mac);
-                        System.out.println("best_kNN[" + i + "-" + k + "]: " + best_kNN[i - k].level);
-                        k--;
-                    }
-                }
             } else {
                 lvl = -99;
-                System.out.println("check_kNN: mac: " + tkey + " level: " + lvl);
             }
+            int dist = distance(tmap.get(tkey), lvl);
+            best_knn.add(new Sample(dist, local));
+            System.out.println("check_kNN: " + tmap.get(tkey) + " : " + lvl + " Distance: " + dist);
         }
-        // VOTACAO!
-        String result = "";
-        int vote = 0;
-        for (Sample best : best_kNN)
-        {
-            System.out.println(best.location);
-            if (best.location!=null)
-            {
-                if(best.location.equals(result)){
-                    vote++;
-                } else {
-                    result = best.location;
+    }
+
+    public String voter(){
+        Collections.sort(best_knn, new Comparator<Sample>() {
+            @Override
+            public int compare(Sample lhs, Sample rhs) {
+                if(lhs.distance == rhs.distance){
+                    return 0;
+                }else if(lhs.distance < rhs.distance){
+                    return -1;
+                }else{
+                    return 1;
                 }
-            } else {
-                vote++;
+            }
+        });
+
+        Map<String,Integer> result = new HashMap<>();
+        Integer freq;
+        for(int i=0;i<3;i++) {
+            freq = result.get(best_knn.get(i).location);
+            result.put(best_knn.get(i).location, (freq == null) ? 1 : freq + 1);
+        }
+
+
+        int max = -1;
+        String mostFrequent = "";
+
+        for(Map.Entry<String, Integer> x: result.entrySet()){
+            //Metade do numero total de webservices testados
+            if (x.getValue() > max) {
+                mostFrequent = x.getKey();
+                max = x.getValue();
             }
         }
-        if (vote>=k/2)
-            return result;
-        else
-            return "";
+        System.out.println("Resultado do votador: " + mostFrequent);
+        return mostFrequent;
     }
 
     public static boolean classify(String best_knn_sample_location, String location) {
