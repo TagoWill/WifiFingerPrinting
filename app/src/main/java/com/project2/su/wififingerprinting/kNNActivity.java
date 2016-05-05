@@ -15,7 +15,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,8 +26,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
 
 public class kNNActivity extends AppCompatActivity {
     ListView lv2;
@@ -44,19 +41,6 @@ public class kNNActivity extends AppCompatActivity {
         Sample(int l, String location){
             this.distance = l;
             this.location = location;
-        }
-
-        public void setLevel(int l)
-        {
-            this.distance = l;
-        }
-
-        public void setLocation(String location) {
-            this.location = location;
-        }
-
-        public String getLocation() {
-            return location;
         }
     }
 
@@ -85,57 +69,53 @@ public class kNNActivity extends AppCompatActivity {
     public void findkNN(String location){
         APScan trainingplace = new APScan();
         WifiManager wifimanager=(WifiManager)getSystemService(Context.WIFI_SERVICE);
-        wifimanager.startScan();
-        List<ScanResult> results = wifimanager.getScanResults();
-        System.out.println("Location: "+location+"  APs Found: "+results.size());
-        String apstring []= new String[results.size()];
-        trainingplace.setLocation(location);
-        int i =0;
-        for (ScanResult ap : results) {
-            trainingplace.setMap(ap.BSSID, ap.level);
-            apstring[i] = "SSID: " + ap.SSID + "\nBSSID: "+ap.BSSID+ "\nSIGNAL: "+ap.level+" dB\n";
-            i++;
-        }
-        TextView result = (TextView) findViewById(R.id.submittextResult);
-        TextView accuracy = (TextView) findViewById(R.id.submittextAccuracy);
-        lv2=(ListView)findViewById(R.id.listViewResults);
-        lv2.setAdapter(new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,apstring));
+        if (wifimanager.isWifiEnabled())
+        {
+            wifimanager.startScan();
+            List<ScanResult> results = wifimanager.getScanResults();
+            System.out.println("Location: "+location+"  APs Found: "+results.size());
+            String apstring []= new String[results.size()];
+            trainingplace.setLocation(location);
+            int i =0;
+            for (ScanResult ap : results) {
+                trainingplace.setMap(ap.BSSID, ap.level);
+                apstring[i] = "SSID: " + ap.SSID + "\nBSSID: "+ap.BSSID+ "\nSIGNAL: "+ap.level+" dB\n";
+                i++;
+            }
+            TextView result = (TextView) findViewById(R.id.submittextResult);
+            lv2=(ListView)findViewById(R.id.listViewResults);
+            lv2.setAdapter(new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,apstring));
 
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(Environment.getExternalStorageDirectory()+"/FingerPrinting/WifiScans.csv"));
-            String printaps;
-            APScan savedplace;
-            String printapssplit[];
-            while ((printaps=reader.readLine()) != null){
-                //System.out.println(printaps);
-                savedplace = new APScan();
-                printapssplit = printaps.split(";");
-                savedplace.setLocation(printapssplit[0]);
-                int h = 1;
-                while (h<printapssplit.length){
-                    savedplace.setMap(printapssplit[h], Integer.parseInt(printapssplit[h+1]));
-                    h+=2;
+            try {
+                BufferedReader reader = new BufferedReader(new FileReader(Environment.getExternalStorageDirectory()+"/FingerPrinting/WifiScans.csv"));
+                String printaps;
+                APScan savedplace;
+                String printapssplit[];
+                while ((printaps=reader.readLine()) != null){
+                    //System.out.println(printaps);
+                    savedplace = new APScan();
+                    printapssplit = printaps.split(";");
+                    savedplace.setLocation(printapssplit[0]);
+                    int h = 1;
+                    while (h<printapssplit.length){
+                        savedplace.setMap(printapssplit[h], Integer.parseInt(printapssplit[h+1]));
+                        h+=2;
+                    }
+                    validationplaces.add(savedplace);
                 }
-                validationplaces.add(savedplace);
-            }
-            int numCorrect = 0;
-            String result_location = "";
-            best_knn = new ArrayList<>();
-            for(APScan sample:validationplaces) {
-                System.out.println("sample location: "+sample.getLocation());
-                check_kNN(trainingplace, sample);
-                if(classify(result_location, sample.getLocation())) {
-                    numCorrect++;
+                String result_location = "";
+                best_knn = new ArrayList<>();
+                for(APScan sample:validationplaces) {
+                    System.out.println("sample location: "+sample.getLocation());
+                    check_kNN(trainingplace, sample);
                 }
+                result_location = voter();
+                result.setText(result_location);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            result_location = voter();
-            double acc = (double)numCorrect / (double)validationplaces.size() * 100.0;
-            System.out.println("Accuracy: "+acc+"%");
-            result.setText(result_location);
-            accuracy.setText(String.format("%.2f",acc)+"%");
-            k=3;
-        } catch (IOException e) {
-            e.printStackTrace();
+        } else {
+            Toast.makeText(kNNActivity.this, "Please Enable Wi-Fi", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -147,7 +127,6 @@ public class kNNActivity extends AppCompatActivity {
 
     public void check_kNN(APScan trainingplace, APScan validationplaces_sample)
     {
-        //System.out.println("check_kNN");
         String local = validationplaces_sample.getLocation();
         HashMap<String, Integer> tmap = sortByValues(trainingplace.map);
         //System.out.println(local+" : "+key+": "+vmap.get(key));
@@ -181,34 +160,27 @@ public class kNNActivity extends AppCompatActivity {
 
         Map<String,Integer> result = new HashMap<>();
         Integer freq;
-        for(int i=0;i<3;i++) {
+        for(int i=0;i<k;i++) {
+            best_knn.get(i).location = (best_knn.get(i).location).replaceAll("[^A-Za-z]","");
+            System.out.println("Voter location ["+i+"]: "+best_knn.get(i).location);
             freq = result.get(best_knn.get(i).location);
             result.put(best_knn.get(i).location, (freq == null) ? 1 : freq + 1);
         }
 
-
         int max = -1;
         String mostFrequent = "";
-
         for(Map.Entry<String, Integer> x: result.entrySet()){
-            //Metade do numero total de webservices testados
             if (x.getValue() > max) {
                 mostFrequent = x.getKey();
                 max = x.getValue();
             }
         }
-        System.out.println("Resultado do votador: " + mostFrequent);
+        System.out.println("Voter Result: " + mostFrequent);
+        double acc = (double)max/(double)k * 100.0;
+        TextView accuracy = (TextView) findViewById(R.id.submittextAccuracy);
+        accuracy.setText(String.format("%.2f",acc)+"%");
+        System.out.println("Accuracy: "+acc+"%");
         return mostFrequent;
-    }
-
-    public static boolean classify(String best_knn_sample_location, String location) {
-        if (best_knn_sample_location.equals(location))
-        {
-            System.out.println("classify");
-            return true;
-        } else {
-            return false;
-        }
     }
 
     private static HashMap sortByValues(HashMap map) {

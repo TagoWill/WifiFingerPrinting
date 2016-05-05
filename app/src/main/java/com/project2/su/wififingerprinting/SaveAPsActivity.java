@@ -43,19 +43,24 @@ public class SaveAPsActivity extends AppCompatActivity {
 
     public void scanAPs(String location, APScan scan){
         wifimanager=(WifiManager)getSystemService(Context.WIFI_SERVICE);
-        wifimanager.startScan();
-        List<ScanResult> results = wifimanager.getScanResults();
-        System.out.println("Location: "+location+"  APs Found: "+results.size());
-        String apstring []= new String[results.size()];
-        scan.setLocation(location);
-        int i =0;
-        for (ScanResult ap : results) {
-            scan.setMap(ap.BSSID, ap.level);
-            apstring[i] = "SSID: " + ap.SSID + "\nBSSID: "+ap.BSSID+ "\nSIGNAL: "+ap.level+" dB\n";
-            i++;
+        if (wifimanager.isWifiEnabled())
+        {
+            wifimanager.startScan();
+            List<ScanResult> results = wifimanager.getScanResults();
+            System.out.println("Location: "+location+"  APs Found: "+results.size());
+            String apstring []= new String[results.size()];
+            scan.setLocation(location);
+            int i =0;
+            for (ScanResult ap : results) {
+                scan.setMap(ap.BSSID, ap.level);
+                apstring[i] = "SSID: " + ap.SSID + "\nBSSID: "+ap.BSSID+ "\nSIGNAL: "+ap.level+" dB\n";
+                i++;
+            }
+            lv=(ListView)findViewById(R.id.listView);
+            lv.setAdapter(new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,apstring));
+            scan.generateCsvFile(getApplicationContext());
+        } else {
+            Toast.makeText(SaveAPsActivity.this, "Please Enable Wi-Fi", Toast.LENGTH_SHORT).show();
         }
-        lv=(ListView)findViewById(R.id.listView);
-        lv.setAdapter(new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,apstring));
-        scan.generateCsvFile(getApplicationContext());
     }
 }
